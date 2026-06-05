@@ -1,5 +1,6 @@
 # AI Git Commit Generator
 
+
 A simple open-source CLI tool that analyzes your staged git changes and automatically generates a clean, meaningful commit message using local AI models (via Ollama).
 
 ## Features

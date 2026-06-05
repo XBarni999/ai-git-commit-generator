@@ -3,13 +3,18 @@ import subprocess
 import sys
 import requests
 
-# Налаштування локальної моделі через Ollama (можна змінити на OpenAI або інший API)
 OLLAMA_URL = "http://localhost:11434/api/generate"
-MODEL_NAME = "llama3" # або mistral, qwen2.5 тощо
+MODEL_NAME = "qwen2.5"
+
+def setup_console():
+    if sys.platform == "win32":
+        try:
+            subprocess.run(["chcp", "1251"], capture_output=True, check=True)
+        except Exception:
+            pass
 
 def get_git_diff():
     try:
-        # Отримуємо змінені рядки, які готові до коміту (staged)
         result = subprocess.run(
             ["git", "diff", "--cached"], 
             capture_output=True, 
@@ -43,17 +48,18 @@ def generate_commit_message(diff):
         response.raise_for_status()
         return response.json().get("response", "").strip()
     except requests.exceptions.RequestException:
-        return "Помилка зв'язку з локальним ШІ. Перевірте, чи запущена Ollama."
+        return f"Помилка зв'язку з Ollama. Перевірте, чи завантажена та запущена модель {MODEL_NAME}."
 
 def main():
+    setup_console()
     print("Аналіз змін у репозиторії...")
-    diff = get_git_diff()
     
+    diff = get_git_diff()
     if not diff.strip():
         print("Нічого не змінено. Спочатку виконайте 'git add'.")
         return
 
-    print("Генерація повідомлення за допомогою ШІ...")
+    print(f"Генерація повідомлення за допомогою {MODEL_NAME}...")
     commit_message = generate_commit_message(diff)
     
     print("\nРекомендований коміт-меседж:")
