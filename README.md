@@ -1,5 +1,9 @@
 # AI Git Commit Generator
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](pyproject.toml)
+[![Ollama](https://img.shields.io/badge/Ollama-local%20AI-green.svg)](https://ollama.com/)
+
 AI Git Commit Generator is a small CLI tool that writes clean Git commit messages for you.
 
 It looks at your staged changes, sends the diff to a local AI model through Ollama, and suggests a short Conventional Commit message like:
@@ -58,7 +62,13 @@ cd ai-git-commit-generator
 Install dependencies:
 
 ```bash
-pip install -r requirements.txt
+python -m pip install -e .
+```
+
+After installation, you can run the tool from any Git repository with:
+
+```bash
+ai-commit
 ```
 
 ## Basic Usage
@@ -78,7 +88,7 @@ git add .
 Run the generator:
 
 ```bash
-python path/to/ai-git-commit-generator/main.py
+ai-commit
 ```
 
 It will print a recommended commit message:
@@ -101,14 +111,14 @@ git commit -m "feat: add user settings page"
 If you want the tool to generate the message and immediately create the commit, use:
 
 ```bash
-python path/to/ai-git-commit-generator/main.py --commit
+ai-commit --commit
 ```
 
 This is the fastest workflow:
 
 ```bash
 git add .
-python path/to/ai-git-commit-generator/main.py --commit
+ai-commit --commit
 ```
 
 ## Windows Example
@@ -124,13 +134,13 @@ And you are working in another project, run:
 ```powershell
 cd "C:\Users\123\Desktop\work\Git\my-project"
 git add .
-python "C:\Users\123\Desktop\work\Git\Ai Git\main.py"
+ai-commit
 ```
 
 To create the commit automatically:
 
 ```powershell
-python "C:\Users\123\Desktop\work\Git\Ai Git\main.py" --commit
+ai-commit --commit
 ```
 
 ## Full Practical Workflow
@@ -152,7 +162,7 @@ git add .
 4. Generate a commit message:
 
 ```bash
-python path/to/ai-git-commit-generator/main.py
+ai-commit
 ```
 
 5. If the message looks good, commit:
@@ -164,7 +174,7 @@ git commit -m "generated message here"
 Or do steps 4 and 5 together:
 
 ```bash
-python path/to/ai-git-commit-generator/main.py --commit
+ai-commit --commit
 ```
 
 ## CLI Options
@@ -172,19 +182,19 @@ python path/to/ai-git-commit-generator/main.py --commit
 Use another Ollama model:
 
 ```bash
-python path/to/ai-git-commit-generator/main.py --model llama3.1
+ai-commit --model llama3.1
 ```
 
 Use a custom Ollama endpoint:
 
 ```bash
-python path/to/ai-git-commit-generator/main.py --url http://localhost:11434/api/generate
+ai-commit --url http://localhost:11434/api/generate
 ```
 
 Set a longer timeout for big diffs:
 
 ```bash
-python path/to/ai-git-commit-generator/main.py --timeout 180
+ai-commit --timeout 180
 ```
 
 ## Example Output
@@ -234,7 +244,7 @@ ollama pull qwen2.5
 Run it again, or use another model:
 
 ```bash
-python path/to/ai-git-commit-generator/main.py --model llama3.1
+ai-commit --model llama3.1
 ```
 
 You can always copy the suggested message, edit it, and commit manually.
