@@ -1,71 +1,134 @@
-import os
+import argparse
 import subprocess
 import sys
 import requests
 
 OLLAMA_URL = "http://localhost:11434/api/generate"
-MODEL_NAME = "qwen2.5"
+DEFAULT_MODEL = "qwen2.5"
+DEFAULT_TIMEOUT = 90
 
-def setup_console():
+
+def setup_console() -> None:
     if sys.platform == "win32":
         try:
-            subprocess.run(["chcp", "1251"], capture_output=True, check=True)
+            subprocess.run(["chcp", "65001"], capture_output=True, check=True)
         except Exception:
             pass
 
-def get_git_diff():
+
+def run_git(args: list[str]) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        ["git", *args],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=True,
+    )
+
+
+def get_git_diff() -> str:
     try:
-        result = subprocess.run(
-            ["git", "diff", "--cached"], 
-            capture_output=True, 
-            text=True, 
-            check=True
-        )
+        result = run_git(["diff", "--cached"])
         return result.stdout
     except subprocess.CalledProcessError:
-        print("Помилка: Переконайтеся, що ви знаходитесь у git-репозиторії.")
+        print("Error: run this command inside a git repository.")
         sys.exit(1)
 
-def generate_commit_message(diff):
+
+def generate_commit_message(diff: str, model: str, url: str, timeout: int) -> str:
     if not diff.strip():
-        return "Немає змін для коміту. Додайте файли через 'git add'."
+        return "No staged changes. Add files first with 'git add'."
 
     prompt = (
-        "Напиши коротке, але інформативне повідомлення для git commit на основі цього diff. "
-        "Використовуй стандарт Conventional Commits (наприклад: feat: add login feature, fix: resolve crash). "
-        "Повідомлення має бути англійською мовою, лаконічним і в один рядок. "
-        f"Ось зміни:\n\n{diff}"
+        "You are an expert software maintainer. Write exactly one git commit message "
+        "for the staged diff below. Use Conventional Commits, lowercase type, and an "
+        "imperative English summary. Keep it under 72 characters if possible. "
+        "Return only the commit message, without quotes, markdown, explanation, or bullets.\n\n"
+        f"Diff:\n{diff}"
     )
 
     payload = {
-        "model": MODEL_NAME,
+        "model": model,
         "prompt": prompt,
-        "stream": False
+        "stream": False,
+        "options": {
+            "temperature": 0.2,
+        },
     }
 
     try:
-        response = requests.post(OLLAMA_URL, json=payload)
+        response = requests.post(url, json=payload, timeout=timeout)
         response.raise_for_status()
-        return response.json().get("response", "").strip()
-    except requests.exceptions.RequestException:
-        return f"Помилка зв'язку з Ollama. Перевірте, чи завантажена та запущена модель {MODEL_NAME}."
+        message = response.json().get("response", "").strip()
+        return clean_commit_message(message)
+    except requests.exceptions.ConnectionError:
+        return (
+            "Error: could not connect to Ollama. Start it with 'ollama serve' "
+            f"and make sure the model is available: ollama pull {model}"
+        )
+    except requests.exceptions.Timeout:
+        return "Error: Ollama request timed out. Try a smaller staged diff or another model."
+    except requests.exceptions.RequestException as exc:
+        return f"Error: Ollama request failed: {exc}"
 
-def main():
+
+def clean_commit_message(message: str) -> str:
+    cleaned = message.strip().strip('"').strip("'")
+    for prefix in ("Commit message:", "commit message:"):
+        if cleaned.startswith(prefix):
+            cleaned = cleaned[len(prefix):].strip()
+    return cleaned.splitlines()[0].strip() if cleaned else "chore: update project"
+
+
+def commit(message: str) -> None:
+    try:
+        run_git(["commit", "-m", message])
+    except subprocess.CalledProcessError as exc:
+        print(exc.stderr.strip() or "Error: git commit failed.")
+        sys.exit(exc.returncode)
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        description="Generate a Conventional Commit message from staged git changes using Ollama."
+    )
+    parser.add_argument("--model", default=DEFAULT_MODEL, help=f"Ollama model name. Default: {DEFAULT_MODEL}")
+    parser.add_argument("--url", default=OLLAMA_URL, help=f"Ollama generate endpoint. Default: {OLLAMA_URL}")
+    parser.add_argument("--timeout", type=int, default=DEFAULT_TIMEOUT, help="Ollama request timeout in seconds.")
+    parser.add_argument("--commit", action="store_true", help="Create the git commit after generating the message.")
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
     setup_console()
-    print("Аналіз змін у репозиторії...")
+    args = build_parser().parse_args(argv)
+
+    print("Analyzing staged git changes...")
     
     diff = get_git_diff()
     if not diff.strip():
-        print("Нічого не змінено. Спочатку виконайте 'git add'.")
-        return
+        print("No staged changes. Run 'git add <files>' first.")
+        return 1
 
-    print(f"Генерація повідомлення за допомогою {MODEL_NAME}...")
-    commit_message = generate_commit_message(diff)
+    print(f"Generating commit message with {args.model}...")
+    commit_message = generate_commit_message(diff, args.model, args.url, args.timeout)
+
+    if commit_message.startswith("Error:"):
+        print(commit_message)
+        return 1
     
-    print("\nРекомендований коміт-меседж:")
+    print("\nRecommended commit message:")
     print("-" * 40)
     print(commit_message)
     print("-" * 40)
 
+    if args.commit:
+        commit(commit_message)
+        print("Commit created.")
+
+    return 0
+
+
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
