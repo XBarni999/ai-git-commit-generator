@@ -9,7 +9,6 @@ OLLAMA_URL = "http://localhost:11434/api/generate"
 DEFAULT_MODEL = "qwen2.5"
 DEFAULT_TIMEOUT = 90
 
-# ANSI escape codes for styling console output
 COLOR_GREEN = "32"
 COLOR_RED = "31"
 COLOR_YELLOW = "33"
@@ -31,7 +30,6 @@ def color_text(text: str, color_code: str) -> str:
 def setup_console() -> None:
     if sys.platform == "win32":
         try:
-            # Enable ANSI escape sequences in standard Windows Command Prompt
             os.system("")
         except Exception:
             pass
@@ -40,7 +38,6 @@ def setup_console() -> None:
         except Exception:
             pass
         try:
-            # Reconfigure stdout/stderr streams to UTF-8
             sys.stdout.reconfigure(encoding='utf-8')
             sys.stderr.reconfigure(encoding='utf-8')
         except Exception:
@@ -130,12 +127,10 @@ def generate_ai_response(diff: str, prompt: str, system_prompt: str, model: str,
         }
         
         try:
-            # Try chat completions first for much better system prompt compliance
             response = requests.post(chat_url, json=chat_payload, timeout=timeout)
             response.raise_for_status()
             return response.json().get("message", {}).get("content", "").strip()
         except Exception:
-            # Fallback to legacy generate completion if chat endpoint failed
             payload = {
                 "model": model,
                 "prompt": combined_prompt,
@@ -163,7 +158,6 @@ def generate_commit_message(diff: str, model: str, url: str, timeout: int) -> st
     if not diff.strip():
         return "No staged changes. Add files first with 'git add'."
     
-    # Truncate diff if it's too large to prevent context overload for local LLMs
     max_diff_len = 10000
     if len(diff) > max_diff_len:
         diff = diff[:max_diff_len] + "\n\n[Diff truncated for length...]"
@@ -196,7 +190,6 @@ def clean_commit_message(message: str) -> str:
         if cleaned.startswith(prefix):
             cleaned = cleaned[len(prefix):].strip()
             
-    # Search for a line that follows the Conventional Commits structure
     import re
     pattern = r"^(feat|fix|docs|style|refactor|perf|test|chore|ci|build|revert)(\([^)]+\))?:\s+.+"
     for line in cleaned.splitlines():
@@ -440,14 +433,12 @@ def apply_pro_formatting(commit_message: str) -> str:
         
     cfg = config.load_config()
     
-    # Apply Jira ticket if enabled
     if cfg.get("jira_integration"):
         ticket = get_jira_ticket(cfg.get("jira_project_codes", []))
         if ticket:
             if ticket not in commit_message:
                 commit_message = f"[{ticket}] {commit_message}"
                 
-    # Apply Gitmoji if enabled
     if cfg.get("gitmoji"):
         import re
         GITMOJIS = {
@@ -507,14 +498,13 @@ def show_custom_help() -> int:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Generate a Conventional Commit message from staged git changes using Ollama or OpenRouter.",
-        add_help=False  # Disable default help to use our styled help
+        add_help=False  
     )
     parser.add_argument("--model", default=DEFAULT_MODEL, help=f"Ollama model name. Default: {DEFAULT_MODEL}")
     parser.add_argument("--url", default=OLLAMA_URL, help=f"Ollama generate endpoint. Default: {OLLAMA_URL}")
     parser.add_argument("--timeout", type=int, default=DEFAULT_TIMEOUT, help="Request timeout in seconds.")
     parser.add_argument("--commit", action="store_true", help="Create the git commit after generating the message.")
     
-    # Pro features and configuration commands
     parser.add_argument("--register", help="Register a Pro license key.")
     parser.add_argument("--status", action="store_true", help="Check license and feature configuration status.")
     parser.add_argument("--review", action="store_true", help="[PRO] Run an AI review of your staged changes.")
@@ -534,15 +524,12 @@ def main(argv: list[str] | None = None) -> int:
         
     args = build_parser().parse_args(argv)
 
-    # Handle license registration
     if args.register is not None:
         return register_key(args.register)
 
-    # Handle status check
     if args.status:
         return show_status()
 
-    # Handle Pro feature configurations
     if args.setup_gitmoji is not None:
         return setup_gitmoji(args.setup_gitmoji)
 
@@ -552,20 +539,17 @@ def main(argv: list[str] | None = None) -> int:
     if args.jira_codes is not None:
         return setup_jira_codes(args.jira_codes)
 
-    # For other commands (review, pr, generation), we must be in a git repo
     diff = get_git_diff()
     if not diff.strip():
         print(color_text("No staged changes. Run 'git add <files>' first.", COLOR_RED))
         return 1
 
-    # Handle Pro feature commands
     if args.review:
         return run_code_review(diff, args.model, args.url, args.timeout)
 
     if args.pr:
         return generate_pr_description(diff, args.model, args.url, args.timeout)
 
-    # Normal commit message generation flow
     print(color_text("Analyzing staged git changes...", COLOR_CYAN))
     
     commit_message = generate_commit_message(diff, args.model, args.url, args.timeout)
