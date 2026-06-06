@@ -51,10 +51,8 @@ def validate_license_key(key: str) -> bool:
         
     try:
         sig_int = int(sig_hex, 16)
-        # Verify RSA signature: decrypted = pow(sig, E_VAL, N_VAL)
         decrypted = pow(sig_int, E_VAL, N_VAL)
         
-        # Calculate expected hash of ID
         h_digest = hashlib.sha256(id_str.encode()).digest()
         h_expected = int.from_bytes(h_digest, "big") % N_VAL
         
