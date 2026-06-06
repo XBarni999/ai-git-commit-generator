@@ -146,10 +146,43 @@ ai-commit --commit
 
 ## CLI Options
 
+- `help`: Custom command guide (also supports `-h` / `--help`).
 - `--model`: Custom Ollama model name (Default: `qwen2.5`).
 - `--url`: Custom Ollama endpoint (Default: `http://localhost:11434/api/generate`).
 - `--timeout`: Request timeout in seconds (Default: `90`).
 - `--commit`: Automatically create a git commit with the generated message.
+- `--status`: Check Pro status and configuration settings.
+- `--register <key>`: Register a Pro license key to unlock Pro features.
+- `--review`: [PRO] Generate a comprehensive AI code review of staged changes.
+- `--pr`: [PRO] Generate a detailed Pull Request description template.
+- `--setup-gitmoji <on/off>`: [PRO] Toggle Gitmoji commit prefix formatting.
+- `--setup-jira <on/off>`: [PRO] Toggle automatic Jira ticket matching from branch names.
+- `--jira-codes <prefixes>`: [PRO] Configure custom comma-separated Jira issue prefixes.
+
+## ★ Pro Features (Premium Upgrade)
+
+Unlock advanced developer utilities by upgrading to the Pro version.
+
+### 1. AI Code Review
+Run code quality audits and security checks directly from your command line:
+```bash
+ai-commit --review
+```
+
+### 2. PR Description Generator
+Auto-generate beautifully structured markdown descriptions for your pull requests:
+```bash
+ai-commit --pr
+```
+
+### 3. Smart Integrations (Jira & Gitmoji)
+Configure ticket parsing and Gitmoji styles globally:
+```bash
+ai-commit --setup-gitmoji on
+ai-commit --setup-jira on
+ai-commit --jira-codes "PROJ,TASK,BUG"
+```
+Once enabled, commits are automatically structured using conventional formatting, Jira issues extracted from branch names (e.g. `feature/PROJ-123-billing` becomes `[PROJ-123]`), and Gitmojis prepended!
 
 ## Example Output
 

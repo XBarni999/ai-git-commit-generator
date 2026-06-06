@@ -31,5 +31,5 @@ dependencies = [
 ai-commit = "main:main"
 
 [tool.setuptools]
-py-modules = ["main"]
+py-modules = ["main", "config"]
 

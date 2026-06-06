@@ -1,5 +1,6 @@
 LICENSE
 README.md
+config.py
 main.py
 pyproject.toml
 ai_git_commit_generator.egg-info/PKG-INFO
