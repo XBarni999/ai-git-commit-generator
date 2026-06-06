@@ -161,7 +161,7 @@ ai-commit --commit
 
 ## ★ Pro Features (Premium Upgrade)
 
-Unlock advanced developer utilities by upgrading to the Pro version.
+Unlock advanced developer utilities by upgrading to the Pro version. You can purchase the Pro license key on [Itch.io](https://phxntxsm.itch.io/ai-commit-generator).
 
 ### 1. AI Code Review
 Run code quality audits and security checks directly from your command line:
@@ -183,6 +183,17 @@ ai-commit --setup-jira on
 ai-commit --jira-codes "PROJ,TASK,BUG"
 ```
 Once enabled, commits are automatically structured using conventional formatting, Jira issues extracted from branch names (e.g. `feature/PROJ-123-billing` becomes `[PROJ-123]`), and Gitmojis prepended!
+
+### 🔑 How to Activate Your PRO License
+
+After purchasing your license key on [Itch.io](https://phxntxsm.itch.io/ai-commit-generator) (format: `AICOMMIT-PRO-XXXX-YYYY`), register it globally in your terminal:
+```bash
+ai-commit --register YOUR_LICENSE_KEY_HERE
+```
+Check your license and feature status at any time:
+```bash
+ai-commit --status
+```
 
 ## Example Output
 
