@@ -17,7 +17,6 @@ def load_config() -> dict:
     try:
         with open(CONFIG_FILE, "r", encoding="utf-8") as f:
             data = json.load(f)
-            # Ensure all default keys exist
             config = DEFAULT_CONFIG.copy()
             config.update(data)
             return config
