@@ -8,10 +8,27 @@ OLLAMA_URL = "http://localhost:11434/api/generate"
 DEFAULT_MODEL = "qwen2.5"
 DEFAULT_TIMEOUT = 90
 
+# ANSI escape codes for styling console output
+COLOR_GREEN = "32"
+COLOR_RED = "31"
+COLOR_YELLOW = "33"
+COLOR_CYAN = "36"
+COLOR_BOLD_GREEN = "1;32"
+COLOR_BOLD = "1"
+
+
+def color_text(text: str, color_code: str) -> str:
+    """Wrap text with ANSI escape codes for terminal coloring if stdout is a TTY."""
+    if sys.stdout.isatty():
+        return f"\033[{color_code}m{text}\033[0m"
+    return text
+
 
 def setup_console() -> None:
     if sys.platform == "win32":
         try:
+            # Enable ANSI escape sequences in standard Windows Command Prompt
+            os.system("")
             subprocess.run(["chcp", "65001"], capture_output=True, check=True)
         except Exception:
             pass
@@ -75,10 +92,10 @@ def generate_commit_message(diff: str, model: str, url: str, timeout: int) -> st
 
     api_key = os.environ.get("OPENROUTER_API_KEY")
     if api_key:
-        print("Using OpenRouter Free Cloud API (Llama 3)...")
+        print(color_text("Using OpenRouter Free Cloud API (Llama 3)...", COLOR_CYAN))
         return generate_with_openrouter(diff, api_key, timeout)
 
-    print(f"No API key found. Using local Ollama with {model}...")
+    print(color_text(f"No API key found. Using local Ollama with {model}...", COLOR_CYAN))
     
     prompt = (
         "You are an expert software maintainer. Write exactly one git commit message "
@@ -144,27 +161,68 @@ def main(argv: list[str] | None = None) -> int:
     setup_console()
     args = build_parser().parse_args(argv)
 
-    print("Analyzing staged git changes...")
+    print(color_text("Analyzing staged git changes...", COLOR_CYAN))
     
     diff = get_git_diff()
     if not diff.strip():
-        print("No staged changes. Run 'git add <files>' first.")
+        print(color_text("No staged changes. Run 'git add <files>' first.", COLOR_RED))
         return 1
 
     commit_message = generate_commit_message(diff, args.model, args.url, args.timeout)
 
     if commit_message.startswith("Error:"):
-        print(commit_message)
+        print(color_text(commit_message, COLOR_RED))
         return 1
     
-    print("\nRecommended commit message:")
-    print("-" * 40)
-    print(commit_message)
-    print("-" * 40)
+    print(color_text("\nRecommended commit message:", COLOR_BOLD_GREEN))
+    print(color_text("-" * 40, COLOR_GREEN))
+    print(color_text(commit_message, COLOR_BOLD))
+    print(color_text("-" * 40, COLOR_GREEN))
 
     if args.commit:
         commit(commit_message)
-        print("Commit created.")
+        print(color_text("Commit created successfully.", COLOR_GREEN))
+    elif sys.stdin.isatty():
+        while True:
+            prompt = color_text("Commit with this message? [y]es / [n]o / [e]dit / [r]egenerate: ", COLOR_YELLOW)
+            try:
+                choice = input(prompt).strip().lower()
+            except (KeyboardInterrupt, EOFError):
+                print(color_text("\nCommit aborted.", COLOR_RED))
+                return 1
+            
+            if choice in ("y", "yes", ""):
+                commit(commit_message)
+                print(color_text("Commit created successfully.", COLOR_GREEN))
+                break
+            elif choice in ("n", "no"):
+                print(color_text("Commit aborted.", COLOR_YELLOW))
+                break
+            elif choice in ("e", "edit"):
+                try:
+                    prompt_edit = color_text("Enter custom commit message: ", COLOR_YELLOW)
+                    custom_message = input(prompt_edit).strip()
+                except (KeyboardInterrupt, EOFError):
+                    print(color_text("\nCommit aborted.", COLOR_RED))
+                    return 1
+                if custom_message:
+                    commit(custom_message)
+                    print(color_text("Commit created successfully.", COLOR_GREEN))
+                    break
+                else:
+                    print(color_text("Empty message. Action cancelled.", COLOR_RED))
+            elif choice in ("r", "regenerate"):
+                print(color_text("\nRegenerating commit message...", COLOR_CYAN))
+                commit_message = generate_commit_message(diff, args.model, args.url, args.timeout)
+                if commit_message.startswith("Error:"):
+                    print(color_text(commit_message, COLOR_RED))
+                    return 1
+                print(color_text("\nRecommended commit message:", COLOR_BOLD_GREEN))
+                print(color_text("-" * 40, COLOR_GREEN))
+                print(color_text(commit_message, COLOR_BOLD))
+                print(color_text("-" * 40, COLOR_GREEN))
+            else:
+                print(color_text("Invalid option. Please choose y, n, e, or r.", COLOR_RED))
 
     return 0
 
