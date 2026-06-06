@@ -3,10 +3,11 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](pyproject.toml)
 [![Ollama](https://img.shields.io/badge/Ollama-local%20AI-green.svg)](https://ollama.com/)
+[![OpenRouter](https://img.shields.io/badge/OpenRouter-cloud%20AI-orange.svg)](https://openrouter.ai/)
 
 AI Git Commit Generator is a small CLI tool that writes clean Git commit messages for you.
 
-It looks at your staged changes, sends the diff to a local AI model through Ollama, and suggests a short Conventional Commit message like:
+It looks at your staged changes and handles the heavy lifting using either a **local LLM** (via Ollama) or a **free cloud API** (via OpenRouter). It automatically formats everything according to the **Conventional Commits** standard:
 
 ```text
 feat: add command line options
@@ -19,8 +20,11 @@ The main idea is simple: instead of writing vague commits like `update`, `change
 ## Features
 
 - Inspects your current `git diff --cached`.
-- Uses local LLMs through Ollama, so your code stays on your machine.
-- Follows the **Conventional Commits** standard.
+- **Hybrid Architecture**: Works locally via Ollama or in the cloud using OpenRouter.
+- **Zero-Config Cloud Mode**: Supports free cloud models (like Llama 3) so you don't need a powerful GPU or local installations.
+- **Interactive Mode**: If run without the `--commit` flag, it provides an interactive menu to commit, edit, regenerate, or cancel.
+- **CLI Aesthetics**: Rich, modern ANSI color terminal outputs (automatically falls back to plain text if not in a TTY).
+- Follows the **Conventional Commits** standard (lowercase type, imperative mood).
 - Can either print a suggested commit message or create the commit for you.
 - Supports custom Ollama models.
 
@@ -34,16 +38,17 @@ You do not need to run it from this repository. Run it from the project where yo
 
 ## Prerequisites
 
-1. Installed [Ollama](https://ollama.com/).
-2. Downloaded model, for example:
+To use the tool, you need one of the following setups:
 
-```bash
-ollama pull qwen2.5
-```
+### Option A: Cloud Mode (Easiest, no AI installation required)
+- A free account on [OpenRouter](https://openrouter.ai/).
+- A generated API key.
+- Python and Git installed.
 
-3. Python installed.
-
-4. Git installed.
+### Option B: Local Mode
+- Installed [Ollama](https://ollama.com/).
+- Downloaded local model, for example: `ollama pull qwen2.5`
+- Python and Git installed.
 
 ## Installation
 
@@ -59,17 +64,13 @@ Go into the tool folder:
 cd ai-git-commit-generator
 ```
 
-Install dependencies:
+Install the tool globally in editable mode:
 
 ```bash
 python -m pip install -e .
 ```
 
-After installation, you can run the tool from any Git repository with:
-
-```bash
-ai-commit
-```
+After installation, the `ai-commit` command becomes available globally across your system.
 
 ## Basic Usage
 
@@ -85,123 +86,76 @@ Stage your changes:
 git add .
 ```
 
-Run the generator:
+### Running with Free Cloud API (No Ollama needed)
+
+Set your OpenRouter API key in your terminal and run the tool:
+
+**Windows (CMD):**
+```cmd
+set OPENROUTER_API_KEY=your_sk_or_v1_key_here
+ai-commit
+```
+
+**PowerShell:**
+```powershell
+$env:OPENROUTER_API_KEY="your_sk_or_v1_key_here"
+ai-commit
+```
+
+**Bash / Linux / macOS:**
+```bash
+export OPENROUTER_API_KEY="your_sk_or_v1_key_here"
+ai-commit
+```
+
+### Running Locally (Via Ollama)
+
+If no API key is found in your environment variables, the tool automatically falls back to your local Ollama instance:
 
 ```bash
 ai-commit
 ```
 
-It will print a recommended commit message:
+Make sure your Ollama server is running (`ollama serve`).
+
+## Interactive Mode
+
+If you run the tool without the `--commit` flag in an interactive terminal, it will recommend a commit message and present you with options:
 
 ```text
 Recommended commit message:
 ----------------------------------------
-feat: add user settings page
+feat: add user authentication
 ----------------------------------------
+Commit with this message? [y]es / [n]o / [e]dit / [r]egenerate:
 ```
 
-Then you can copy it and commit manually:
-
-```bash
-git commit -m "feat: add user settings page"
-```
+- **`y` / `yes` / `[Enter]`**: Apply the recommended message and commit.
+- **`n` / `no`**: Decline and exit without committing.
+- **`e` / `edit`**: Prompt to enter a custom commit message instead.
+- **`r` / `regenerate`**: Query the AI again to generate a new suggestion.
 
 ## Auto Commit Mode
 
-If you want the tool to generate the message and immediately create the commit, use:
-
-```bash
-ai-commit --commit
-```
-
-This is the fastest workflow:
+If you want the tool to generate the message and immediately create the commit (skipping interactive checks), use the `--commit` flag:
 
 ```bash
 git add .
-ai-commit --commit
-```
-
-## Windows Example
-
-If this repository is stored here:
-
-```text
-C:\Users\123\Desktop\work\Git\Ai Git
-```
-
-And you are working in another project, run:
-
-```powershell
-cd "C:\Users\123\Desktop\work\Git\my-project"
-git add .
-ai-commit
-```
-
-To create the commit automatically:
-
-```powershell
-ai-commit --commit
-```
-
-## Full Practical Workflow
-
-1. Make changes in your project.
-
-2. Check what changed:
-
-```bash
-git status
-```
-
-3. Stage the files you want to commit:
-
-```bash
-git add .
-```
-
-4. Generate a commit message:
-
-```bash
-ai-commit
-```
-
-5. If the message looks good, commit:
-
-```bash
-git commit -m "generated message here"
-```
-
-Or do steps 4 and 5 together:
-
-```bash
 ai-commit --commit
 ```
 
 ## CLI Options
 
-Use another Ollama model:
-
-```bash
-ai-commit --model llama3.1
-```
-
-Use a custom Ollama endpoint:
-
-```bash
-ai-commit --url http://localhost:11434/api/generate
-```
-
-Set a longer timeout for big diffs:
-
-```bash
-ai-commit --timeout 180
-```
+- `--model`: Custom Ollama model name (Default: `qwen2.5`).
+- `--url`: Custom Ollama endpoint (Default: `http://localhost:11434/api/generate`).
+- `--timeout`: Request timeout in seconds (Default: `90`).
+- `--commit`: Automatically create a git commit with the generated message.
 
 ## Example Output
 
 ```text
 Analyzing staged git changes...
-Generating commit message with qwen2.5...
+Using OpenRouter Free Cloud API (Llama 3)...
 
 Recommended commit message:
 ----------------------------------------
@@ -212,52 +166,22 @@ feat: add command line options
 ## Troubleshooting
 
 ### It says there are no staged changes
+The tool only reads staged changes from `git diff --cached`. Make sure you run `git add .` first.
 
-The tool only reads staged changes from:
-
-```bash
-git diff --cached
-```
-
-So you need to stage files first:
-
-```bash
-git add .
-```
-
-### It cannot connect to Ollama
-
-Make sure Ollama is installed and running:
-
-```bash
-ollama serve
-```
-
-Then make sure the model exists:
-
-```bash
-ollama pull qwen2.5
-```
+### It cannot connect to Ollama (Local Mode)
+Make sure Ollama is running (`ollama serve`) and you have pulled the default model (`ollama pull qwen2.5`). Alternatively, set the `OPENROUTER_API_KEY` variable to use the cloud mode instead.
 
 ### It generated a bad message
-
-Run it again, or use another model:
-
-```bash
-ai-commit --model llama3.1
-```
-
-You can always copy the suggested message, edit it, and commit manually.
+Run it again, or try switching your backend or local model using the `--model` option. Or choose `r` (regenerate) in interactive mode.
 
 ## Why This Is Useful
 
-Good commit messages make your project history easier to understand. They help you remember what changed, make pull requests clearer, and make open-source repositories look more professional.
-
-This tool saves time by turning your actual code changes into a readable commit message automatically.
+Good commit messages make your project history easier to understand. They help you remember what changed, make pull requests clearer, and make open-source repositories look more professional. This tool saves time by turning your actual code changes into a readable commit message automatically.
 
 ## Privacy
 
-By default, the tool uses Ollama locally. Your staged diff is sent to your local Ollama server, not to a cloud API.
+- **Local Mode**: Your staged diffs stay entirely on your local machine and are processed by Ollama.
+- **Cloud Mode**: Diffs are processed securely through OpenRouter's API using open-weights models.
 
 ## License
 
