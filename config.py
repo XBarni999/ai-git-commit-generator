@@ -31,19 +31,34 @@ def save_config(config: dict) -> None:
     except Exception:
         pass
 
+N_VAL = 7312249894375976921793922449201110936893774762906060924036646709198375048705262972114038527893908476821999267816369539814569266642398508810518900530120401
+E_VAL = 65537
+
 def validate_license_key(key: str) -> bool:
+    import hashlib
     key = key.strip().upper()
     if not key.startswith("AICOMMIT-PRO-"):
         return False
     parts = key.split("-")
     if len(parts) != 4:
         return False
+    
+    id_str = parts[2]
+    sig_hex = parts[3]
+    
+    if len(sig_hex) != 128:
+        return False
+        
     try:
-        xxxx = int(parts[2])
-        yyyy = int(parts[3])
-        if xxxx < 0 or yyyy < 0:
-            return False
-        return (xxxx * 31) % 10000 == yyyy
+        sig_int = int(sig_hex, 16)
+        # Verify RSA signature: decrypted = pow(sig, E_VAL, N_VAL)
+        decrypted = pow(sig_int, E_VAL, N_VAL)
+        
+        # Calculate expected hash of ID
+        h_digest = hashlib.sha256(id_str.encode()).digest()
+        h_expected = int.from_bytes(h_digest, "big") % N_VAL
+        
+        return decrypted == h_expected
     except ValueError:
         return False
 
