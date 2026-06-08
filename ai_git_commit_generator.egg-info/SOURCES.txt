@@ -1,0 +1,12 @@
+LICENSE
+README.md
+config.py
+main.py
+pyproject.toml
+ai_git_commit_generator.egg-info/PKG-INFO
+ai_git_commit_generator.egg-info/SOURCES.txt
+ai_git_commit_generator.egg-info/dependency_links.txt
+ai_git_commit_generator.egg-info/entry_points.txt
+ai_git_commit_generator.egg-info/requires.txt
+ai_git_commit_generator.egg-info/top_level.txt
+tests/test_commit.py
