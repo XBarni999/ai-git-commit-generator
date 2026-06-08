@@ -24,7 +24,8 @@ classifiers = [
   "Topic :: Software Development :: Version Control :: Git"
 ]
 dependencies = [
-  "requests>=2.31.0"
+  "requests>=2.31.0",
+  "prompt-toolkit>=3.0.0"
 ]
 
 [project.scripts]

@@ -65,6 +65,34 @@ def get_git_diff() -> str:
 
 
 def generate_ai_response(diff: str, prompt: str, system_prompt: str, model: str, url: str, timeout: int) -> str:
+    groq_key = os.environ.get("GROQ_API_KEY")
+    if groq_key:
+        selected_model = "llama-3.3-70b-versatile"
+        if model != DEFAULT_MODEL:
+            selected_model = model
+            
+        print(color_text(f"Using Groq API ({selected_model})...", COLOR_CYAN))
+        
+        groq_url = "https://api.groq.com/openai/v1/chat/completions"
+        headers = {
+            "Authorization": f"Bearer {groq_key}",
+            "Content-Type": "application/json"
+        }
+        payload = {
+            "model": selected_model,
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": prompt}
+            ],
+            "temperature": 0.2
+        }
+        try:
+            response = requests.post(groq_url, json=payload, headers=headers, timeout=timeout)
+            response.raise_for_status()
+            return response.json().get("choices", [{}])[0].get("message", {}).get("content", "").strip()
+        except requests.exceptions.RequestException as exc:
+            return f"Error: Groq request failed: {exc}"
+            
     api_key = os.environ.get("OPENROUTER_API_KEY")
     if api_key:
         import config
@@ -167,6 +195,8 @@ def generate_commit_message(diff: str, model: str, url: str, timeout: int) -> st
         "Instructions:\n"
         "You are an expert software maintainer. Write exactly one git commit message for the diff above. "
         "Use Conventional Commits standard (lowercase type, imperative summary).\n"
+        "Ensure the first line (subject) does not exceed 50 characters.\n"
+        "If a body is necessary, separate it from the subject with a blank line, and wrap each line of the body at 72 characters.\n"
         "Do NOT write any introduction, explanation, quotes, or markdown. "
         "Do NOT write 'Here is the commit message:' or 'Your updated script...'. "
         "Start directly with the conventional commit prefix (e.g., feat:, fix:, chore:, docs:).\n\n"
@@ -185,19 +215,115 @@ def generate_commit_message(diff: str, model: str, url: str, timeout: int) -> st
 
 
 def clean_commit_message(message: str) -> str:
-    cleaned = message.strip().strip('"').strip("'")
+    cleaned = message.strip().strip('"').strip("'").strip()
     for prefix in ("Commit message:", "commit message:"):
         if cleaned.startswith(prefix):
             cleaned = cleaned[len(prefix):].strip()
             
+    cleaned = cleaned.strip('"').strip("'").strip()
+    lines = cleaned.splitlines()
+    if not lines:
+        return "chore: update project"
+        
     import re
     pattern = r"^(feat|fix|docs|style|refactor|perf|test|chore|ci|build|revert)(\([^)]+\))?:\s+.+"
-    for line in cleaned.splitlines():
+    
+    start_idx = -1
+    for idx, line in enumerate(lines):
         line_stripped = line.strip().strip('"').strip("'")
         if re.match(pattern, line_stripped, re.IGNORECASE):
-            return line_stripped
+            start_idx = idx
+            break
             
-    return cleaned.splitlines()[0].strip() if cleaned else "chore: update project"
+    if start_idx != -1:
+        reconstructed = "\n".join(lines[start_idx:]).strip()
+        reconstructed = reconstructed.strip('"').strip("'").strip()
+        return reconstructed
+        
+    return cleaned
+
+
+def is_conventional_commit(message: str) -> bool:
+    lines = message.splitlines()
+    if not lines:
+        return False
+    import re
+    pattern = r"^(feat|fix|docs|style|refactor|perf|test|chore|ci|build|revert)(\([^)]+\))?:\s+.+"
+    return bool(re.match(pattern, lines[0].strip(), re.IGNORECASE))
+
+
+def check_50_72_compliance(message: str) -> list[str]:
+    warnings = []
+    lines = message.splitlines()
+    if not lines:
+        return warnings
+    
+    subject = lines[0]
+    if len(subject) > 50:
+        warnings.append(f"Subject line exceeds 50 characters (currently {len(subject)} chars).")
+        
+    if len(lines) > 1:
+        if lines[1].strip() != "":
+            warnings.append("Subject and body should be separated by a blank line.")
+            
+        for i, line in enumerate(lines[2:], start=3):
+            if len(line) > 72:
+                warnings.append(f"Line {i} in the body exceeds 72 characters (currently {len(line)} chars).")
+    return warnings
+
+
+def prompt_commit_type(message: str) -> str:
+    print(color_text("\nAI returned a message that doesn't follow the Conventional Commits standard:", COLOR_YELLOW))
+    print(color_text(f"  {message.splitlines()[0] if message.splitlines() else message}", COLOR_BOLD))
+    print()
+    print("Please select a conventional commit type:")
+    types = [
+        ("feat", "new feature"),
+        ("fix", "bug fix"),
+        ("docs", "documentation changes"),
+        ("style", "formatting, missing semi-colons, etc."),
+        ("refactor", "refactoring production code"),
+        ("perf", "performance improvements"),
+        ("test", "adding/refactoring tests"),
+        ("chore", "updating build tasks, configs, etc."),
+        ("ci", "CI configuration files/scripts"),
+        ("build", "build system or external dependencies"),
+        ("revert", "reverting a previous commit")
+    ]
+    for idx, (t, desc) in enumerate(types, 1):
+        print(f"  {idx:2d}) {t:<10} - {desc}")
+    print()
+    
+    while True:
+        try:
+            choice = input(color_text("Select type (1-11) or press Enter to skip: ", COLOR_YELLOW)).strip()
+        except (KeyboardInterrupt, EOFError):
+            print("\nSelection skipped.")
+            return message
+            
+        if not choice:
+            return message
+            
+        if choice.isdigit() and 1 <= int(choice) <= len(types):
+            selected_type = types[int(choice) - 1][0]
+            break
+        print(color_text("Invalid selection. Please enter a number between 1 and 11.", COLOR_RED))
+        
+    try:
+        scope = input(color_text("Enter optional scope (e.g. parser, auth) or press Enter to skip: ", COLOR_YELLOW)).strip()
+    except (KeyboardInterrupt, EOFError):
+        scope = ""
+        
+    first_line = message.splitlines()[0] if message.splitlines() else ""
+    subject_content = first_line.strip()
+    
+    scope_str = f"({scope})" if scope else ""
+    new_subject = f"{selected_type}{scope_str}: {subject_content}"
+    
+    lines = message.splitlines()
+    if len(lines) > 1:
+        return new_subject + "\n" + "\n".join(lines[1:])
+    return new_subject
 
 
 def commit(message: str) -> None:
@@ -474,6 +600,7 @@ def show_custom_help() -> int:
     print()
     print(color_text("Core Commands:", COLOR_BOLD))
     print("  (default)            Generate commit message from staged changes")
+    print("  -a, --all            Stage all changes (git add .) before generating")
     print("  --commit             Generate and automatically commit changes")
     print("  --timeout <sec>      Set request timeout (default: 90)")
     print("  --model <model>      Set custom Ollama model name (default: qwen2.5)")
@@ -500,6 +627,7 @@ def build_parser() -> argparse.ArgumentParser:
         description="Generate a Conventional Commit message from staged git changes using Ollama or OpenRouter.",
         add_help=False  
     )
+    parser.add_argument("-a", "--all", action="store_true", help="Stage all changes (git add .) before generating.")
     parser.add_argument("--model", default=DEFAULT_MODEL, help=f"Ollama model name. Default: {DEFAULT_MODEL}")
     parser.add_argument("--url", default=OLLAMA_URL, help=f"Ollama generate endpoint. Default: {OLLAMA_URL}")
     parser.add_argument("--timeout", type=int, default=DEFAULT_TIMEOUT, help="Request timeout in seconds.")
@@ -539,6 +667,13 @@ def main(argv: list[str] | None = None) -> int:
     if args.jira_codes is not None:
         return setup_jira_codes(args.jira_codes)
 
+    if args.all:
+        try:
+            run_git(["add", "."])
+        except Exception as exc:
+            print(color_text(f"Error: failed to stage changes with git add .: {exc}", COLOR_RED))
+            return 1
+
     diff = get_git_diff()
     if not diff.strip():
         print(color_text("No staged changes. Run 'git add <files>' first.", COLOR_RED))
@@ -558,6 +693,9 @@ def main(argv: list[str] | None = None) -> int:
         print(color_text(commit_message, COLOR_RED))
         return 1
     
+    if not is_conventional_commit(commit_message):
+        commit_message = prompt_commit_type(commit_message)
+
     commit_message = apply_pro_formatting(commit_message)
     
     import config
@@ -569,14 +707,21 @@ def main(argv: list[str] | None = None) -> int:
     print(color_text(commit_message, COLOR_BOLD))
     print(color_text("-" * 40, COLOR_GREEN))
 
+    warnings = check_50_72_compliance(commit_message)
+    if warnings:
+        print(color_text("Warning: Commit message style warnings:", COLOR_BOLD_YELLOW))
+        for warn in warnings:
+            print(color_text(f"  ⚠️  {warn}", COLOR_YELLOW))
+        print()
+
     if args.commit:
         commit(commit_message)
         print(color_text("Commit created successfully.", COLOR_GREEN))
     elif sys.stdin.isatty():
         while True:
-            prompt = color_text("Commit with this message? [y]es / [n]o / [e]dit / [r]egenerate: ", COLOR_YELLOW)
+            prompt_str = color_text("Commit with this message? [y]es / [n]o / [e]dit / [r]egenerate: ", COLOR_YELLOW)
             try:
-                choice = input(prompt).strip().lower()
+                choice = input(prompt_str).strip().lower()
             except (KeyboardInterrupt, EOFError):
                 print(color_text("\nCommit aborted.", COLOR_RED))
                 return 1
@@ -590,8 +735,13 @@ def main(argv: list[str] | None = None) -> int:
                 break
             elif choice in ("e", "edit"):
                 try:
-                    prompt_edit = color_text("Enter custom commit message: ", COLOR_YELLOW)
-                    custom_message = input(prompt_edit).strip()
+                    try:
+                        from prompt_toolkit import prompt as pt_prompt
+                        print(color_text("Editing commit message inline. Press Enter when done.", COLOR_CYAN))
+                        custom_message = pt_prompt("> ", default=commit_message).strip()
+                    except ImportError:
+                        prompt_edit = color_text("Enter custom commit message: ", COLOR_YELLOW)
+                        custom_message = input(prompt_edit).strip()
                 except (KeyboardInterrupt, EOFError):
                     print(color_text("\nCommit aborted.", COLOR_RED))
                     return 1
@@ -607,11 +757,19 @@ def main(argv: list[str] | None = None) -> int:
                 if commit_message.startswith("Error:"):
                     print(color_text(commit_message, COLOR_RED))
                     return 1
+                if not is_conventional_commit(commit_message):
+                    commit_message = prompt_commit_type(commit_message)
                 commit_message = apply_pro_formatting(commit_message)
                 print(color_text(f"\nRecommended commit message{badge}:", COLOR_BOLD_GREEN))
                 print(color_text("-" * 40, COLOR_GREEN))
                 print(color_text(commit_message, COLOR_BOLD))
                 print(color_text("-" * 40, COLOR_GREEN))
+                warnings = check_50_72_compliance(commit_message)
+                if warnings:
+                    print(color_text("Warning: Commit message style warnings:", COLOR_BOLD_YELLOW))
+                    for warn in warnings:
+                        print(color_text(f"  ⚠️  {warn}", COLOR_YELLOW))
+                    print()
             else:
                 print(color_text("Invalid option. Please choose y, n, e, or r.", COLOR_RED))
 
