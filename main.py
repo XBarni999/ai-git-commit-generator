@@ -736,6 +736,7 @@ def main(argv: list[str] | None = None) -> int:
             elif choice in ("e", "edit"):
                 try:
                     try:
+                        # pyrefly: ignore [missing-import]
                         from prompt_toolkit import prompt as pt_prompt
                         print(color_text("Editing commit message inline. Press Enter when done.", COLOR_CYAN))
                         custom_message = pt_prompt("> ", default=commit_message).strip()
