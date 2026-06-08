@@ -599,8 +599,7 @@ def show_custom_help() -> int:
     print("Usage: " + color_text("ai-commit [options]", COLOR_BOLD_YELLOW))
     print()
     print(color_text("Core Commands:", COLOR_BOLD))
-    print("  (default)            Generate commit message from staged changes")
-    print("  -a, --all            Stage all changes (git add .) before generating")
+    print("  (default)            Generate commit message from changes (stages via git add .)")
     print("  --commit             Generate and automatically commit changes")
     print("  --timeout <sec>      Set request timeout (default: 90)")
     print("  --model <model>      Set custom Ollama model name (default: qwen2.5)")
@@ -627,7 +626,6 @@ def build_parser() -> argparse.ArgumentParser:
         description="Generate a Conventional Commit message from staged git changes using Ollama or OpenRouter.",
         add_help=False  
     )
-    parser.add_argument("-a", "--all", action="store_true", help="Stage all changes (git add .) before generating.")
     parser.add_argument("--model", default=DEFAULT_MODEL, help=f"Ollama model name. Default: {DEFAULT_MODEL}")
     parser.add_argument("--url", default=OLLAMA_URL, help=f"Ollama generate endpoint. Default: {OLLAMA_URL}")
     parser.add_argument("--timeout", type=int, default=DEFAULT_TIMEOUT, help="Request timeout in seconds.")
@@ -667,16 +665,15 @@ def main(argv: list[str] | None = None) -> int:
     if args.jira_codes is not None:
         return setup_jira_codes(args.jira_codes)
 
-    if args.all:
-        try:
-            run_git(["add", "."])
-        except Exception as exc:
-            print(color_text(f"Error: failed to stage changes with git add .: {exc}", COLOR_RED))
-            return 1
+    try:
+        run_git(["add", "."])
+    except Exception as exc:
+        print(color_text(f"Error: failed to stage changes with git add .: {exc}", COLOR_RED))
+        return 1
 
     diff = get_git_diff()
     if not diff.strip():
-        print(color_text("No staged changes. Run 'git add <files>' first.", COLOR_RED))
+        print(color_text("No changes found to commit.", COLOR_RED))
         return 1
 
     if args.review:

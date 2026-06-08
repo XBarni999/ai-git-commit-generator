@@ -20,7 +20,7 @@ The main idea is simple: instead of writing vague commits like `update`, `change
 
 ## Features
 
-- Inspects staged changes (or automatically stages unstaged changes using `--all` / `-a`).
+- Automatically stages all unstaged changes (`git add .`) and inspects them.
 - **Hybrid Architecture**: Works locally via Ollama or in the cloud using OpenRouter or Groq.
 - **Zero-Config Cloud Mode**: Supports free cloud models (via OpenRouter or Groq) so you don't need a powerful GPU or local installations.
 - **Interactive Mode**: If run without the `--commit` flag, it provides an interactive menu to commit, edit, regenerate, or cancel.
@@ -180,14 +180,12 @@ Commit with this message? [y]es / [n]o / [e]dit / [r]egenerate:
 If you want the tool to generate the message and immediately create the commit (skipping interactive checks), use the `--commit` flag:
 
 ```bash
-git add .
 ai-commit --commit
 ```
 
 ## CLI Options
 
 - `help`: Custom command guide (also supports `-h` / `--help`).
-- `-a`, `--all`: Automatically stage all changes (`git add .`) before generating the message.
 - `--model`: Custom Ollama/Cloud model name (Default: `qwen2.5` or `llama-3.3-70b-versatile` on Groq).
 - `--url`: Custom Ollama endpoint (Default: `http://localhost:11434/api/generate`).
 - `--timeout`: Request timeout in seconds (Default: `90`).
