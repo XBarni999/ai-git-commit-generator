@@ -99,12 +99,9 @@ def generate_ai_response(diff: str, prompt: str, system_prompt: str, model: str,
         is_pro = config.is_pro_active()
         cfg = config.load_config()
         
-        selected_model = "nvidia/nemotron-3.5-content-safety:free"
-        if is_pro:
-            if cfg.get("custom_model"):
-                selected_model = cfg.get("custom_model")
-            else:
-                selected_model = "meta-llama/llama-3.1-8b-instruct"
+        selected_model = "openrouter/free"
+        if is_pro and cfg.get("custom_model"):
+            selected_model = cfg.get("custom_model")
         
         if model != DEFAULT_MODEL:
             selected_model = model
