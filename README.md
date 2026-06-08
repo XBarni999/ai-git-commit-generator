@@ -4,10 +4,11 @@
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](pyproject.toml)
 [![Ollama](https://img.shields.io/badge/Ollama-local%20AI-green.svg)](https://ollama.com/)
 [![OpenRouter](https://img.shields.io/badge/OpenRouter-cloud%20AI-orange.svg)](https://openrouter.ai/)
+[![Groq](https://img.shields.io/badge/Groq-cloud%20AI-red.svg)](https://groq.com/)
 
 AI Git Commit Generator is a small CLI tool that writes clean Git commit messages for you.
 
-It looks at your staged changes and handles the heavy lifting using either a **local LLM** (via Ollama) or a **free cloud API** (via OpenRouter). It automatically formats everything according to the **Conventional Commits** standard:
+It looks at your staged/unstaged changes and handles the heavy lifting using either a **local LLM** (via Ollama) or **cloud APIs** (via OpenRouter or Groq). It automatically formats everything according to the **Conventional Commits** standard:
 
 ```text
 feat: add command line options
@@ -19,14 +20,17 @@ The main idea is simple: instead of writing vague commits like `update`, `change
 
 ## Features
 
-- Inspects your current `git diff --cached`.
-- **Hybrid Architecture**: Works locally via Ollama or in the cloud using OpenRouter.
-- **Zero-Config Cloud Mode**: Supports free cloud models (like Llama 3) so you don't need a powerful GPU or local installations.
+- Inspects staged changes (or automatically stages unstaged changes using `--all` / `-a`).
+- **Hybrid Architecture**: Works locally via Ollama or in the cloud using OpenRouter or Groq.
+- **Zero-Config Cloud Mode**: Supports free cloud models (via OpenRouter or Groq) so you don't need a powerful GPU or local installations.
 - **Interactive Mode**: If run without the `--commit` flag, it provides an interactive menu to commit, edit, regenerate, or cancel.
+- **Inline Editing**: Pre-fills the commit message for you to edit inline using `prompt-toolkit`.
+- **Fallback Selector**: Interactive selection menu to choose commit type if the AI output is not conventional.
+- **50/72 limit checks**: Displays warnings if the message violates conventional commit length restrictions.
 - **CLI Aesthetics**: Rich, modern ANSI color terminal outputs (automatically falls back to plain text if not in a TTY).
 - Follows the **Conventional Commits** standard (lowercase type, imperative mood).
 - Can either print a suggested commit message or create the commit for you.
-- Supports custom Ollama models.
+- Supports custom Ollama/Cloud models.
 
 ## When To Use It
 
@@ -40,12 +44,17 @@ You do not need to run it from this repository. Run it from the project where yo
 
 To use the tool, you need one of the following setups:
 
-### Option A: Cloud Mode (Easiest, no AI installation required)
+### Option A: Cloud Mode via OpenRouter (No AI installation required)
 - A free account on [OpenRouter](https://openrouter.ai/).
-- A generated API key.
+- A generated API key (`OPENROUTER_API_KEY`).
 - Python and Git installed.
 
-### Option B: Local Mode
+### Option B: Cloud Mode via Groq (Fastest cloud mode)
+- An account on [Groq](https://groq.com/).
+- A generated API key (`GROQ_API_KEY`).
+- Python and Git installed.
+
+### Option C: Local Mode
 - Installed [Ollama](https://ollama.com/).
 - Downloaded local model, for example: `ollama pull qwen2.5`
 - Python and Git installed.
@@ -86,7 +95,31 @@ Stage your changes:
 git add .
 ```
 
-### Running with Free Cloud API (No Ollama needed)
+### Running with Cloud APIs (No Ollama needed)
+
+#### 1. Via Groq Cloud API (Recommended for speed)
+
+Set your Groq API key in your terminal and run the tool:
+
+**Windows (CMD):**
+```cmd
+set GROQ_API_KEY=your_groq_key_here
+ai-commit
+```
+
+**PowerShell:**
+```powershell
+$env:GROQ_API_KEY="your_groq_key_here"
+ai-commit
+```
+
+**Bash / Linux / macOS:**
+```bash
+export GROQ_API_KEY="your_groq_key_here"
+ai-commit
+```
+
+#### 2. Via OpenRouter Free Cloud API
 
 Set your OpenRouter API key in your terminal and run the tool:
 
@@ -147,17 +180,26 @@ ai-commit --commit
 ## CLI Options
 
 - `help`: Custom command guide (also supports `-h` / `--help`).
-- `--model`: Custom Ollama model name (Default: `qwen2.5`).
+- `-a`, `--all`: Automatically stage all changes (`git add .`) before generating the message.
+- `--model`: Custom Ollama/Cloud model name (Default: `qwen2.5` or `llama-3.3-70b-versatile` on Groq).
 - `--url`: Custom Ollama endpoint (Default: `http://localhost:11434/api/generate`).
 - `--timeout`: Request timeout in seconds (Default: `90`).
 - `--commit`: Automatically create a git commit with the generated message.
 - `--status`: Check Pro status and configuration settings.
 - `--register <key>`: Register a Pro license key to unlock Pro features.
-- `--review`: [PRO] Generate a comprehensive AI code review of staged changes.
+- `--review`: [PRO] Run an AI review of changes.
 - `--pr`: [PRO] Generate a detailed Pull Request description template.
 - `--setup-gitmoji <on/off>`: [PRO] Toggle Gitmoji commit prefix formatting.
 - `--setup-jira <on/off>`: [PRO] Toggle automatic Jira ticket matching from branch names.
 - `--jira-codes <prefixes>`: [PRO] Configure custom comma-separated Jira issue prefixes.
+
+## Running Tests
+
+To run the automated unit tests, run:
+
+```bash
+python -m unittest tests/test_commit.py
+```
 
 ## ★ Pro Features (Premium Upgrade)
 
