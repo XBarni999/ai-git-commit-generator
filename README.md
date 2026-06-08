@@ -61,20 +61,27 @@ To use the tool, you need one of the following setups:
 
 ## Installation
 
-Clone this repository:
+Install the package directly from PyPI:
 
+```bash
+pip install ai-git-commit-generator
+```
+
+### Installing from Source (Development)
+
+If you want to run it from source:
+
+1. Clone this repository:
 ```bash
 git clone https://github.com/XBarni999/ai-git-commit-generator.git
 ```
 
-Go into the tool folder:
-
+2. Go into the tool folder:
 ```bash
 cd ai-git-commit-generator
 ```
 
-Install the tool globally in editable mode:
-
+3. Install in editable mode:
 ```bash
 python -m pip install -e .
 ```
