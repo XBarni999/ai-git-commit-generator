@@ -23,6 +23,7 @@ The main idea is simple: instead of writing vague commits like `update`, `change
 - Automatically stages all unstaged changes (`git add .`) and inspects them.
 - **Hybrid Architecture**: Works locally via Ollama or in the cloud using OpenRouter or Groq.
 - **Zero-Config Cloud Mode**: Supports free cloud models (via OpenRouter or Groq) so you don't need a powerful GPU or local installations.
+- **Local API Key Storage**: Allows saving API keys locally to avoid setting environment variables on every launch.
 - **Interactive Mode**: If run without the `--commit` flag, it provides an interactive menu to commit, edit, regenerate, or cancel.
 - **Inline Editing**: Pre-fills the commit message for you to edit inline using `prompt-toolkit`.
 - **Fallback Selector**: Interactive selection menu to choose commit type if the AI output is not conventional.
@@ -104,9 +105,27 @@ git add .
 
 ### Running with Cloud APIs (No Ollama needed)
 
-#### 1. Via Groq Cloud API (Recommended for speed)
+You can either save your API keys locally (recommended, as they persist across runs), or set them as temporary environment variables.
 
-Set your Groq API key in your terminal and run the tool:
+#### A. Storing API Keys Locally (Recommended)
+
+Save your Groq or OpenRouter API keys to the local config file once:
+
+```bash
+# Save Groq API key
+ai-commit --setup-groq "gsk_your_key_here"
+
+# Save OpenRouter API key
+ai-commit --setup-openrouter "sk-or-v1-your_key_here"
+```
+
+Once saved, you can run `ai-commit` anywhere, and the tool will automatically load and use them. To clear a key, simply pass an empty string (e.g. `ai-commit --setup-groq ""`).
+
+#### B. Temporary Environment Variables
+
+If you prefer not to store keys, you can set them as environment variables in your active terminal session:
+
+##### 1. Via Groq Cloud API (Recommended for speed)
 
 **Windows (CMD):**
 ```cmd
@@ -126,9 +145,7 @@ export GROQ_API_KEY="your_groq_key_here"
 ai-commit
 ```
 
-#### 2. Via OpenRouter Free Cloud API
-
-Set your OpenRouter API key in your terminal and run the tool:
+##### 2. Via OpenRouter Free Cloud API
 
 **Windows (CMD):**
 ```cmd
@@ -150,7 +167,7 @@ ai-commit
 
 ### Running Locally (Via Ollama)
 
-If no API key is found in your environment variables, the tool automatically falls back to your local Ollama instance:
+If no API key is found in your environment variables or local config, the tool automatically falls back to your local Ollama instance:
 
 ```bash
 ai-commit
@@ -192,6 +209,8 @@ ai-commit --commit
 - `--commit`: Automatically create a git commit with the generated message.
 - `--status`: Check Pro status and configuration settings.
 - `--register <key>`: Register a Pro license key to unlock Pro features.
+- `--setup-groq <key>`: Save Groq API key locally (leave empty/use `""` to clear).
+- `--setup-openrouter <key>`: Save OpenRouter API key locally (leave empty/use `""` to clear).
 - `--review`: [PRO] Run an AI review of changes.
 - `--pr`: [PRO] Generate a detailed Pull Request description template.
 - `--setup-gitmoji <on/off>`: [PRO] Toggle Gitmoji commit prefix formatting.
@@ -205,6 +224,18 @@ To run the automated unit tests, run:
 ```bash
 python -m unittest tests/test_commit.py
 ```
+
+## ★ Free vs Pro Comparison
+
+| Feature | Free Version | Pro Version |
+| :--- | :---: | :---: |
+| **Supported Engines** | Local Ollama, Groq Cloud, OpenRouter Cloud | Local Ollama, Groq Cloud, OpenRouter Cloud |
+| **Commit Message Body** | Subject line only (Single-line) | Rich explanation body (max 2-3 lines, wrapped at 72 chars) |
+| **Diff Character Limit** | Up to 2,000 characters | Up to 16,000 characters |
+| **Custom Cloud Models** | Default model only | Any custom model via `--model` flag or config override |
+| **AI Code Reviews (`--review`)** | ❌ (Upgrade required) | ✅ Full automated reviews & recommendations |
+| **PR Descriptions (`--pr`)** | ❌ (Upgrade required) | ✅ Automated PR markdown descriptions |
+| **Smart Integrations** | ❌ (Upgrade required) | ✅ Gitmoji & automatic Jira branch ticket matching |
 
 ## ★ Pro Features (Premium Upgrade)
 
