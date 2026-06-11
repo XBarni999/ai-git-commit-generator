@@ -99,7 +99,6 @@ def generate_ai_response(diff: str, prompt: str, system_prompt: str, model: str,
     if not api_key:
         api_key = config.load_config().get("openrouter_api_key")
     if api_key:
-        import config
         is_pro = config.is_pro_active()
         cfg = config.load_config()
         

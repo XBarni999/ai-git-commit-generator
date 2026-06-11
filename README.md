@@ -42,7 +42,7 @@ You do not need to run it from this repository. Run it from the project where yo
 
 ## Prerequisites
 
-To use the tool, you need one of the following setups:
+To use the tool, you need one of the following setups:  
 
 ### Option A: Cloud Mode via OpenRouter (No AI installation required)
 - A free account on [OpenRouter](https://openrouter.ai/).
