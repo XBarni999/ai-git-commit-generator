@@ -65,13 +65,18 @@ def get_git_diff() -> str:
 
 
 def generate_ai_response(diff: str, prompt: str, system_prompt: str, model: str, url: str, timeout: int) -> str:
+    is_pro = config.is_pro_active()
+    
     groq_key = os.environ.get("GROQ_API_KEY")
     if not groq_key:
         groq_key = config.load_config().get("groq_api_key")
     if groq_key:
         selected_model = "llama-3.3-70b-versatile"
         if model != DEFAULT_MODEL:
-            selected_model = model
+            if is_pro:
+                selected_model = model
+            else:
+                print(color_text("★ Note: Custom models for Cloud APIs require Pro. Falling back to default model. ★", COLOR_YELLOW))
             
         print(color_text(f"Using Groq API ({selected_model})...", COLOR_CYAN))
         
@@ -99,7 +104,6 @@ def generate_ai_response(diff: str, prompt: str, system_prompt: str, model: str,
     if not api_key:
         api_key = config.load_config().get("openrouter_api_key")
     if api_key:
-        is_pro = config.is_pro_active()
         cfg = config.load_config()
         
         selected_model = "openrouter/free"
@@ -107,7 +111,10 @@ def generate_ai_response(diff: str, prompt: str, system_prompt: str, model: str,
             selected_model = cfg.get("custom_model")
         
         if model != DEFAULT_MODEL:
-            selected_model = model
+            if is_pro:
+                selected_model = model
+            else:
+                print(color_text("★ Note: Custom models for Cloud APIs require Pro. Falling back to default model. ★", COLOR_YELLOW))
             
         print(color_text(f"Using OpenRouter Cloud API ({selected_model})...", COLOR_CYAN))
         
@@ -182,13 +189,59 @@ def generate_ai_response(diff: str, prompt: str, system_prompt: str, model: str,
                 return f"Error: Ollama request failed: {exc}"
 
 
+def wrap_body_lines(message: str) -> str:
+    lines = message.splitlines()
+    if len(lines) <= 2:
+        return message
+    
+    subject = lines[0]
+    has_blank_separator = (lines[1].strip() == "")
+    body_start_idx = 2 if has_blank_separator else 1
+    
+    import textwrap
+    wrapped_body_lines = []
+    
+    body_lines = []
+    for line in lines[body_start_idx:]:
+        stripped = line.strip()
+        if not stripped:
+            if body_lines:
+                break
+            continue
+        body_lines.append(line)
+    
+    for line in body_lines:
+        import re
+        list_match = re.match(r"^(\s*[-*+]\s+|\s*\d+\.\s+)", line)
+        if list_match:
+            prefix = list_match.group(1)
+            content = line[len(prefix):].strip()
+            indent = " " * len(prefix)
+            wrapped = textwrap.wrap(content, width=72, initial_indent=prefix, subsequent_indent=indent)
+            wrapped_body_lines.extend(wrapped)
+        else:
+            wrapped = textwrap.wrap(line, width=72)
+            wrapped_body_lines.extend(wrapped)
+            
+    while wrapped_body_lines and not wrapped_body_lines[-1]:
+        wrapped_body_lines.pop()
+            
+    return subject + "\n\n" + "\n".join(wrapped_body_lines)
+
+
 def generate_commit_message(diff: str, model: str, url: str, timeout: int) -> str:
     if not diff.strip():
         return "No staged changes. Add files first with 'git add'."
     
-    max_diff_len = 10000
+    import config
+    is_pro = config.is_pro_active()
+    
+    max_diff_len = 16000 if is_pro else 2000
     if len(diff) > max_diff_len:
-        diff = diff[:max_diff_len] + "\n\n[Diff truncated for length...]"
+        if is_pro:
+            diff = diff[:max_diff_len] + "\n\n[Diff truncated for length...]"
+        else:
+            diff = diff[:max_diff_len] + "\n\n[Diff truncated for length. Upgrade to Pro to analyze full diffs...]"
         
     prompt = (
         f"Diff:\n{diff}\n\n"
@@ -196,7 +249,17 @@ def generate_commit_message(diff: str, model: str, url: str, timeout: int) -> st
         "You are an expert software maintainer. Write exactly one git commit message for the diff above. "
         "Use Conventional Commits standard (lowercase type, imperative summary).\n"
         "Ensure the first line (subject) does not exceed 50 characters.\n"
-        "If a body is necessary, separate it from the subject with a blank line, and wrap each line of the body at 72 characters.\n"
+    )
+    
+    if is_pro:
+        prompt += (
+            "If a body is necessary, separate it from the subject with a blank line, and wrap each line of the body at 72 characters.\n"
+            "Keep the body extremely brief and concise: summarize what changed in exactly 2 or 3 lines maximum. Do NOT write long explanations.\n"
+        )
+    else:
+        prompt += "Do NOT write any commit body or details. Write ONLY a single-line summary (subject line) starting with the prefix.\n"
+        
+    prompt += (
         "Do NOT write any introduction, explanation, quotes, or markdown. "
         "Do NOT write 'Here is the commit message:' or 'Your updated script...'. "
         "Start directly with the conventional commit prefix (e.g., feat:, fix:, chore:, docs:).\n\n"
@@ -211,7 +274,16 @@ def generate_commit_message(diff: str, model: str, url: str, timeout: int) -> st
     message = generate_ai_response(diff, prompt, system_prompt, model, url, timeout)
     if message.startswith("Error:"):
         return message
-    return clean_commit_message(message)
+        
+    cleaned = clean_commit_message(message)
+    if not is_pro:
+        lines = cleaned.splitlines()
+        if lines:
+            cleaned = lines[0].strip()
+    else:
+        cleaned = wrap_body_lines(cleaned)
+            
+    return cleaned
 
 
 def clean_commit_message(message: str) -> str:
@@ -750,6 +822,9 @@ def main(argv: list[str] | None = None) -> int:
     print(color_text("-" * 40, COLOR_GREEN))
     print(color_text(commit_message, COLOR_BOLD))
     print(color_text("-" * 40, COLOR_GREEN))
+    if not is_pro:
+        print(color_text("💡 Tip: Upgrade to Pro to unlock detailed commit bodies, PR descriptions, and AI code reviews! Run 'ai-commit --status' to learn more.", COLOR_YELLOW))
+        print()
 
     warnings = check_50_72_compliance(commit_message)
     if warnings:

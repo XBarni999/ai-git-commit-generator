@@ -7,6 +7,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 
 import main
 import config
+import unittest.mock
 
 
 class TestCommitGenerator(unittest.TestCase):
@@ -122,6 +123,86 @@ class TestConfigKeys(unittest.TestCase):
         config.set_groq_api_key("")
         cfg = config.load_config()
         self.assertEqual(cfg.get("groq_api_key"), "")
+
+
+class TestPremiumFeatures(unittest.TestCase):
+    @unittest.mock.patch("main.generate_ai_response")
+    @unittest.mock.patch("config.is_pro_active")
+    def test_diff_truncation_free(self, mock_is_pro, mock_ai_response):
+        mock_is_pro.return_value = False
+        mock_ai_response.return_value = "feat: add dummy commit"
+        
+        long_diff = "a" * 3000
+        main.generate_commit_message(long_diff, "model", "url", 90)
+        
+        # Check that the diff passed to generate_ai_response was truncated
+        args, kwargs = mock_ai_response.call_args
+        passed_diff = args[0]
+        self.assertTrue("[Diff truncated for length. Upgrade to Pro" in passed_diff)
+        self.assertTrue(len(passed_diff) < 3000)
+
+    @unittest.mock.patch("main.generate_ai_response")
+    @unittest.mock.patch("config.is_pro_active")
+    def test_diff_truncation_pro(self, mock_is_pro, mock_ai_response):
+        mock_is_pro.return_value = True
+        mock_ai_response.return_value = "feat: add dummy commit"
+        
+        long_diff = "a" * 3000
+        main.generate_commit_message(long_diff, "model", "url", 90)
+        
+        # Check that the diff was not truncated since limit is 16000
+        args, kwargs = mock_ai_response.call_args
+        passed_diff = args[0]
+        self.assertFalse("truncated" in passed_diff)
+        self.assertEqual(len(passed_diff), 3000)
+
+    @unittest.mock.patch("main.generate_ai_response")
+    @unittest.mock.patch("config.is_pro_active")
+    def test_free_commit_strips_body(self, mock_is_pro, mock_ai_response):
+        mock_is_pro.return_value = False
+        # AI returns a multi-line commit message
+        mock_ai_response.return_value = "feat: add user\n\nDetailed explanation of user login"
+        
+        result = main.generate_commit_message("some diff", "model", "url", 90)
+        self.assertEqual(result, "feat: add user")
+
+    @unittest.mock.patch("main.generate_ai_response")
+    @unittest.mock.patch("config.is_pro_active")
+    def test_pro_commit_keeps_body(self, mock_is_pro, mock_ai_response):
+        mock_is_pro.return_value = True
+        mock_ai_response.return_value = "feat: add user\n\nDetailed explanation of user login"
+        
+        result = main.generate_commit_message("some diff", "model", "url", 90)
+        self.assertEqual(result, "feat: add user\n\nDetailed explanation of user login")
+
+    def test_wrap_body_lines_preserves_lists_and_wraps(self):
+        msg = (
+            "feat: add authentication\n"
+            "\n"
+            "- First item in list that is also extremely long and needs to be wrapped properly with its indent intact."
+        )
+        wrapped = main.wrap_body_lines(msg)
+        lines = wrapped.splitlines()
+        self.assertTrue(all(len(line) <= 72 for line in lines))
+        # Find the list line and verify the subsequent line is indented
+        idx = [i for i, l in enumerate(lines) if l.startswith("- First item")][0]
+        self.assertTrue(lines[idx+1].startswith("  "))
+
+    def test_wrap_body_lines_stops_at_first_paragraph(self):
+        msg = (
+            "feat: add authentication\n"
+            "\n"
+            "Line 1\n"
+            "Line 2\n"
+            "\n"
+            "Line 4\n"
+            "Line 5"
+        )
+        wrapped = main.wrap_body_lines(msg)
+        lines = wrapped.splitlines()
+        self.assertEqual(len(lines), 4)
+        self.assertEqual(lines[2], "Line 1")
+        self.assertEqual(lines[3], "Line 2")
 
 
 if __name__ == "__main__":
