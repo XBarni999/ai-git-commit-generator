@@ -66,6 +66,8 @@ def get_git_diff() -> str:
 
 def generate_ai_response(diff: str, prompt: str, system_prompt: str, model: str, url: str, timeout: int) -> str:
     groq_key = os.environ.get("GROQ_API_KEY")
+    if not groq_key:
+        groq_key = config.load_config().get("groq_api_key")
     if groq_key:
         selected_model = "llama-3.3-70b-versatile"
         if model != DEFAULT_MODEL:
@@ -94,6 +96,8 @@ def generate_ai_response(diff: str, prompt: str, system_prompt: str, model: str,
             return f"Error: Groq request failed: {exc}"
             
     api_key = os.environ.get("OPENROUTER_API_KEY")
+    if not api_key:
+        api_key = config.load_config().get("openrouter_api_key")
     if api_key:
         import config
         is_pro = config.is_pro_active()
@@ -379,6 +383,13 @@ def show_status() -> int:
     cfg = config.load_config()
     is_pro = config.is_pro_active()
     
+    def mask_key(key: str) -> str:
+        if not key:
+            return color_text("[NOT SET]", COLOR_YELLOW)
+        if len(key) <= 8:
+            return color_text("[SET] " + "*" * len(key), COLOR_GREEN)
+        return color_text(f"[SET] {key[:4]}...{key[-4:]}", COLOR_GREEN)
+
     if is_pro:
         print(color_text("=" * 60, COLOR_GREEN))
         print(color_text("★ AI GIT COMMIT GENERATOR - PRO ACTIVE ★", COLOR_BOLD_GREEN))
@@ -402,12 +413,20 @@ def show_status() -> int:
         custom_model = cfg.get("custom_model")
         model_display = custom_model if custom_model else "Default Premium Model"
         print(f"  - Custom premium model override:   {model_display}")
+        print()
+        print("Local API Keys:")
+        print(f"  - Groq API Key:                    {mask_key(cfg.get('groq_api_key'))}")
+        print(f"  - OpenRouter API Key:              {mask_key(cfg.get('openrouter_api_key'))}")
         print(color_text("=" * 60, COLOR_GREEN))
     else:
         print(color_text("=" * 60, COLOR_YELLOW))
         print(color_text("☆ AI GIT COMMIT GENERATOR - FREE ☆", COLOR_BOLD_YELLOW))
         print(color_text("=" * 60, COLOR_YELLOW))
         print("License Status: " + color_text("FREE VERSION", COLOR_RED))
+        print()
+        print("Local API Keys:")
+        print(f"  - Groq API Key:                    {mask_key(cfg.get('groq_api_key'))}")
+        print(f"  - OpenRouter API Key:              {mask_key(cfg.get('openrouter_api_key'))}")
         print()
         print("Unlock PRO features to supercharge your developer workflow:")
         print("  1. AI Code Review (--review): Get bug & style suggestions.")
@@ -460,6 +479,26 @@ def setup_jira_codes(value: str) -> int:
     cfg["jira_project_codes"] = codes
     config.save_config(cfg)
     print(color_text(f"Jira project prefixes updated to: {', '.join(codes)}", COLOR_GREEN))
+    return 0
+
+
+def setup_groq_key(key: str) -> int:
+    import config
+    config.set_groq_api_key(key)
+    if key.strip():
+        print(color_text("Groq API key saved successfully.", COLOR_GREEN))
+    else:
+        print(color_text("Groq API key cleared.", COLOR_GREEN))
+    return 0
+
+
+def setup_openrouter_key(key: str) -> int:
+    import config
+    config.set_openrouter_api_key(key)
+    if key.strip():
+        print(color_text("OpenRouter API key saved successfully.", COLOR_GREEN))
+    else:
+        print(color_text("OpenRouter API key cleared.", COLOR_GREEN))
     return 0
 
 
@@ -606,6 +645,10 @@ def show_custom_help() -> int:
     print("  --status             Check license and Pro configurations")
     print("  --register <key>     Register a Pro license key")
     print()
+    print(color_text("Local API Keys configuration:", COLOR_BOLD))
+    print("  --setup-groq <key>   Save your Groq API key locally")
+    print("  --setup-openrouter <key> Save your OpenRouter API key locally")
+    print()
     print(color_text("Pro Features:", COLOR_BOLD_GREEN))
     print("  --review             Run an AI code review of staged changes")
     print("  --pr                 Generate a detailed Pull Request description")
@@ -630,6 +673,8 @@ def build_parser() -> argparse.ArgumentParser:
     
     parser.add_argument("--register", help="Register a Pro license key.")
     parser.add_argument("--status", action="store_true", help="Check license and feature configuration status.")
+    parser.add_argument("--setup-groq", help="Save your Groq API key locally.")
+    parser.add_argument("--setup-openrouter", help="Save your OpenRouter API key locally.")
     parser.add_argument("--review", action="store_true", help="[PRO] Run an AI review of your staged changes.")
     parser.add_argument("--pr", action="store_true", help="[PRO] Generate a Pull Request description.")
     parser.add_argument("--setup-gitmoji", choices=["on", "off"], help="[PRO] Turn Gitmoji commit style on/off.")
@@ -652,6 +697,12 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.status:
         return show_status()
+
+    if args.setup_groq is not None:
+        return setup_groq_key(args.setup_groq)
+
+    if args.setup_openrouter is not None:
+        return setup_openrouter_key(args.setup_openrouter)
 
     if args.setup_gitmoji is not None:
         return setup_gitmoji(args.setup_gitmoji)

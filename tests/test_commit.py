@@ -6,6 +6,7 @@ import unittest
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 import main
+import config
 
 
 class TestCommitGenerator(unittest.TestCase):
@@ -84,6 +85,43 @@ class TestCommitGenerator(unittest.TestCase):
         )
         warnings = main.check_50_72_compliance(msg)
         self.assertTrue(any("exceeds 72 characters" in w for w in warnings))
+
+
+
+class TestConfigKeys(unittest.TestCase):
+    def setUp(self):
+        import tempfile
+        self.temp_config = tempfile.mktemp(suffix=".json")
+        self.old_config_file = config.CONFIG_FILE
+        config.CONFIG_FILE = self.temp_config
+
+    def tearDown(self):
+        import os
+        if os.path.exists(self.temp_config):
+            try:
+                os.remove(self.temp_config)
+            except Exception:
+                pass
+        config.CONFIG_FILE = self.old_config_file
+
+    def test_save_and_load_groq_key(self):
+        import config
+        config.set_groq_api_key("gsk_test_12345")
+        cfg = config.load_config()
+        self.assertEqual(cfg.get("groq_api_key"), "gsk_test_12345")
+
+    def test_save_and_load_openrouter_key(self):
+        import config
+        config.set_openrouter_api_key("sk-or-test-67890")
+        cfg = config.load_config()
+        self.assertEqual(cfg.get("openrouter_api_key"), "sk-or-test-67890")
+
+    def test_clear_groq_key(self):
+        import config
+        config.set_groq_api_key("gsk_test_12345")
+        config.set_groq_api_key("")
+        cfg = config.load_config()
+        self.assertEqual(cfg.get("groq_api_key"), "")
 
 
 if __name__ == "__main__":

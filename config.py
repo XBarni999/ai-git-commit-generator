@@ -8,7 +8,9 @@ DEFAULT_CONFIG = {
     "gitmoji": False,
     "jira_integration": False,
     "jira_project_codes": ["PROJ", "TASK", "BUG"],
-    "custom_model": ""
+    "custom_model": "",
+    "groq_api_key": "",
+    "openrouter_api_key": ""
 }
 
 def load_config() -> dict:
@@ -29,6 +31,16 @@ def save_config(config: dict) -> None:
             json.dump(config, f, indent=2)
     except Exception:
         pass
+
+def set_groq_api_key(key: str) -> None:
+    config = load_config()
+    config["groq_api_key"] = key.strip().strip('"').strip("'").strip()
+    save_config(config)
+
+def set_openrouter_api_key(key: str) -> None:
+    config = load_config()
+    config["openrouter_api_key"] = key.strip().strip('"').strip("'").strip()
+    save_config(config)
 
 N_VAL = 7312249894375976921793922449201110936893774762906060924036646709198375048705262972114038527893908476821999267816369539814569266642398508810518900530120401
 E_VAL = 65537
