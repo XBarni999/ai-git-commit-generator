@@ -1,6 +1,6 @@
 Metadata-Version: 2.4
 Name: ai-git-commit-generator
-Version: 0.2.9
+Version: 0.3.0
 Summary: Generate Conventional Commit messages from staged git changes using local Ollama models.
 Author: XBarni999
 License-Expression: MIT
@@ -268,7 +268,7 @@ ai-commit --status
 
 ```text
 Analyzing staged git changes...
-Using OpenRouter Free Cloud API (NVIDIA Nemotron)...
+Using OpenRouter Free Cloud API (openrouter/free)...
 
 Recommended commit message:
 ----------------------------------------
